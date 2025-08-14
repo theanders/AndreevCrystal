@@ -14,9 +14,11 @@ def S_AC(w, phi, n, l_S, gamma, T, E_F, l_S1 = 0., l_Sn = 0.):
     # Calculate parameters
     k_F = np.sqrt(2*E_F*m_star*m_0/(hbar_mev*hbar_Js)) # 1/m
     v_F = hbar_Js*k_F / (m_star*m_0) # m/s
-    xi_0 = hbar_mev * v_F / (np.pi*gamma*Delta_Al) # m
+    xi_0 = hbar_mev * v_F / (np.pi*Delta_Al) # m
+    xi_gamma = hbar_mev * v_F / (np.pi*gamma*Delta_Al) # m
     L_S = l_S#/xi_0 # l_S/xi_0
     k_FS = k_F*l_S*xi_0 # k_F*l_S #when l_S = L_S/xi_0
+    # k_FS = k_F*l_S # k_F*l_S
     # L_N = l_N/xi_0 # l_N / xi_0
     # k_FN = k_F*l_N # k_F*l_N
     L_S1 = l_S1#/xi_0
@@ -58,6 +60,11 @@ def S_AC(w, phi, n, l_S, gamma, T, E_F, l_S1 = 0., l_Sn = 0.):
         ''' Selfenergy of superconductor '''
         return E* ( 1 + np.sqrt(1-E**2+0j)/gamma )
     
+    def xi(E):
+        ''' Coherence length of superconductor '''
+        Del = gamma * Delta_Al**2 / (np.sqrt(1 - E**2 + 0j)) # Renormalized gap
+        return hbar_mev * v_F / (np.pi * Del)
+    
     # # Define ke and kh
     # def ke(E):
     #     return k_FN + E*L_N
@@ -66,17 +73,19 @@ def S_AC(w, phi, n, l_S, gamma, T, E_F, l_S1 = 0., l_Sn = 0.):
     
     def r_he(phi, E, L_S = L_S):
         ''' electron to hole reflection amplitude '''
-        exp_2iqls = np.exp(-2*np.pi*L_S)
+        q = np.sqrt(1 - w_selfenergy(E)**2 + 0j)/(np.pi * xi(E))
+        exp_2iqls = np.exp(-2*q*L_S*xi_0)
+        # print(f'q: {q}, exp_2iqls: {exp_2iqls}, xi(E): {xi(E)}, xi_0: {xi_0}, L_S: {L_S}')
         # if np.abs(E) > 1:
         #     r_blonder = (E - np.sqrt(E**2 - 1) + 0j)
         # else:
         #     r_blonder = np.exp(-1j*np.arccos(E + 0j))
-        if E > 1:
-            r_blonder = (E - np.sqrt(E**2 - 1) + 0j)
-        elif E < -1:
-            r_blonder = (E + np.sqrt(E**2 - 1) + 0j)
+        if w_selfenergy(E) > 1:
+            r_blonder = (E - np.sqrt(w_selfenergy(E)**2 - 1) + 0j)
+        elif w_selfenergy(E) < -1:
+            r_blonder = (E + np.sqrt(w_selfenergy(E)**2 - 1) + 0j)
         else:
-            r_blonder = np.exp(-1j*np.arccos(E + 0j))
+            r_blonder = np.exp(-1j*np.arccos(w_selfenergy(E) + 0j))
         
         return (1-exp_2iqls)*r_blonder*np.exp(-1j*phi) / (1 - exp_2iqls*r_blonder*r_blonder)
     
@@ -84,21 +93,40 @@ def S_AC(w, phi, n, l_S, gamma, T, E_F, l_S1 = 0., l_Sn = 0.):
         ''' hole to electron reflection amplitude '''
         return -np.conjugate(r_he(phi, -np.conjugate(E), L_S))
     
+    # def r_eh(phi, E, L_S = L_S):
+    #     ''' electron to hole reflection amplitude '''
+    #     E = -E
+    #     q = np.sqrt(1 - -np.conjugate(w_selfenergy(E))**2 + 0j)/(np.pi * np.conjugate(xi(E)))
+    #     exp_2iqls = np.exp(-2*q*L_S*xi_0)
+    #     # if np.abs(E) > 1:
+    #     #     r_blonder = (E - np.sqrt(E**2 - 1) + 0j)
+    #     # else:
+    #     #     r_blonder = np.exp(-1j*np.arccos(E + 0j))
+    #     if w_selfenergy(E) > 1:
+    #         r_blonder = (E - np.sqrt(np.conjugate(w_selfenergy(E))**2 - 1) + 0j)
+    #     elif w_selfenergy(E) < -1:
+    #         r_blonder = (E + np.sqrt(np.conjugate(w_selfenergy(E))**2 - 1) + 0j)
+    #     else:
+    #         r_blonder = np.exp(-1j*np.arccos(np.conjugate(w_selfenergy(E)) + 0j))
+
+    #     return -np.conjugate((1-exp_2iqls)*r_blonder*np.exp(-1j*phi) / (1 - exp_2iqls*r_blonder*r_blonder))
+    
     def t_ee(E, L_S = L_S):
         ''' electron to electron transmission amplitude '''
-        exp_iqls = np.exp(-np.pi*L_S)
-        exp_2iqls = np.exp(-2*np.pi*L_S)
+        q = np.sqrt(1 - w_selfenergy(E)**2 + 0j)/(np.pi * xi(E))
+        exp_iqls = np.exp(-q*L_S*xi_0)
+        exp_2iqls = np.exp(-2*q*L_S*xi_0)
         
         # if np.abs(E) > 1:
         #     r_blonder = (E - np.sqrt(E**2 - 1) + 0j)
         # else:
         #     r_blonder = np.exp(-1j*np.arccos(E + 0j))
-        if E > 1:
-            r_blonder = (E - np.sqrt(E**2 - 1) + 0j)
-        elif E < -1:
-            r_blonder = (E + np.sqrt(E**2 - 1) + 0j)
+        if w_selfenergy(E) > 1:
+            r_blonder = (E - np.sqrt(w_selfenergy(E)**2 - 1) + 0j)
+        elif w_selfenergy(E) < -1:
+            r_blonder = (E + np.sqrt(w_selfenergy(E)**2 - 1) + 0j)
         else:
-            r_blonder = np.exp(-1j*np.arccos(E + 0j))
+            r_blonder = np.exp(-1j*np.arccos(w_selfenergy(E) + 0j))
 
         return (1-r_blonder*r_blonder)*exp_iqls*np.exp(1j*k_FS)/ (1 - exp_2iqls*r_blonder*r_blonder)
 
@@ -106,12 +134,31 @@ def S_AC(w, phi, n, l_S, gamma, T, E_F, l_S1 = 0., l_Sn = 0.):
         ''' hole to hole transmission amplitude '''
         return np.conjugate(t_ee(-np.conjugate(E), L_S))
     
+    # def t_hh(E, L_S = L_S):
+    #     ''' electron to electron transmission amplitude '''
+    #     q = np.sqrt(1 - np.conjugate(w_selfenergy(E))**2 + 0j)/(np.pi * np.conjugate(xi(E)))
+    #     exp_iqls = np.exp(-q*L_S*xi_0)
+    #     exp_2iqls = np.exp(-2*q*L_S*xi_0)
+        
+    #     # if np.abs(E) > 1:
+    #     #     r_blonder = (E - np.sqrt(E**2 - 1) + 0j)
+    #     # else:
+    #     #     r_blonder = np.exp(-1j*np.arccos(E + 0j))
+    #     if w_selfenergy(E) > 1:
+    #         r_blonder = (E - np.sqrt(np.conjugate(w_selfenergy(E))**2 - 1) + 0j)
+    #     elif w_selfenergy(E) < -1:
+    #         r_blonder = (E + np.sqrt(np.conjugate(w_selfenergy(E))**2 - 1) + 0j)
+    #     else:
+    #         r_blonder = np.exp(-1j*np.arccos(np.conjugate(w_selfenergy(E)) + 0j))
+
+    #     return np.conjugate((1-r_blonder*r_blonder)*exp_iqls*np.exp(1j*k_FS)/ (1 - exp_2iqls*r_blonder*r_blonder))
+    
     def S_NSN(phi,w, L_S = L_S):
         ''' Scattering matrix for NSN junction '''
-        reh = r_eh(phi,w_selfenergy(w), L_S)
-        rhe = r_he(phi,w_selfenergy(w), L_S)
-        tee = t_ee(w_selfenergy(w), L_S)
-        thh = t_hh(w_selfenergy(w), L_S)
+        reh = r_eh(phi,w, L_S)
+        rhe = r_he(phi,w, L_S)
+        tee = t_ee(w, L_S)
+        thh = t_hh(w, L_S)
 
         S = np.array( [ [0, reh, tee, 0],
                       [rhe, 0, 0, thh],
@@ -166,7 +213,7 @@ def G(Elst, num_E, philst, num_phi, n, l_S, gamma, T, E_F, L_S1 = 0, L_Sn = 0):
             GLL[i,j], GLR[i,j], GRL[i,j], GRR[i,j] = Gmat(S)
     return GLL, GLR, GRL, GRR
 
-def G_1d(Elst, phi, num, n, l_S, gamma, T, E_F, L_S1 = 0, L_Sn = 0):
+def G_1d(Elst, phi, num, n, l_S, gamma, T, E_F, L_S1 = 0., L_Sn = 0.):
     GLL = np.zeros(num)
     GLR = np.zeros(num)
     GRL = np.zeros(num)
